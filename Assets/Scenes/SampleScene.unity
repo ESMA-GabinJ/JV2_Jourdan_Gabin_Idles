@@ -846,7 +846,7 @@ MonoBehaviour:
   rechargeButton: {fileID: 920442206}
   rechargeCost: 100
   batteryDecrementButton: {fileID: 359239211}
-  batteryDecrementCost: 100
+  batteryDecrementCost: 200
 --- !u!1 &912729109
 GameObject:
   m_ObjectHideFlags: 0
