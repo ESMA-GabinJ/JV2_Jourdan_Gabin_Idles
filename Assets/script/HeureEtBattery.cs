@@ -10,6 +10,7 @@ public class ClockAndBatterySystem : MonoBehaviour
     public TextMeshProUGUI nightText; // Texte pour afficher "Nuit X"
     public TextMeshProUGUI moneyText; // Texte pour afficher l'argent
     public TextMeshProUGUI rechargePriceText; // Texte pour afficher le prix du bouton recharge
+    public TextMeshProUGUI batteryDecrementPriceText; // Texte pour afficher le prix du nouvel item
 
     private float hourCounter = 0f;
     private float timeUpdateInterval = 10f;
@@ -19,32 +20,27 @@ public class ClockAndBatterySystem : MonoBehaviour
     private bool isWaitingAfterReset = false;
 
     private float battery = 100f;
-    private float batteryDecrementTime = 100f;
+    private float batteryDecrementTime = 40f; // Temps avant la décharge de la batterie
     private bool batteryResetInProgress = false;
     private float resetTimer = 0f;
     private float startBatteryTime = 0f;
 
     public Button toggleButton;
     public GameObject objectToDisplay;
-    public Button movingImageButton; // Le bouton qui représentera l'image
-    private bool isObjectDisplayed = false;
 
-    public float batteryIncreaseAmount = 10f;
+    public float batteryIncreaseAmount = 1f;
     private int nightCounter = 1; // Compteur pour suivre la nuit actuelle
     private int money = 0; // Montant total d'argent accumulé
 
     private int maxAppearancesPerNight = 5; // Nombre maximum d'apparitions pour la première nuit
 
-    private int clickCount = 0; // Nombre de clics sur l'image
-    private const int maxClicksToMove = 20; // Nombre de clics requis pour déplacer l'image
-
-    public float moveAmount = 10f; // Valeur du déplacement du bouton (modifiable dans l'Inspector)
-
-    private bool isMovingAllowed = true; // Permet de contrôler quand le bouton peut bouger
-
     // Nouveau bouton recharge
     public Button rechargeButton; // Le bouton qui va permettre d'augmenter le batteryIncreaseAmount
     public int rechargeCost = 100; // Coût de l'achat du recharge
+
+    // Nouveau bouton pour réduire la vitesse de décharge de la batterie
+    public Button batteryDecrementButton; // Le bouton qui va permettre de réduire la vitesse de décharge
+    public int batteryDecrementCost = 200; // Coût initial de l'achat
 
     void Start()
     {
@@ -76,6 +72,11 @@ public class ClockAndBatterySystem : MonoBehaviour
             rechargePriceText = GameObject.Find("RechargePriceText").GetComponent<TextMeshProUGUI>();
         }
 
+        if (batteryDecrementPriceText == null)
+        {
+            batteryDecrementPriceText = GameObject.Find("BatteryDecrementPriceText").GetComponent<TextMeshProUGUI>();
+        }
+
         if (objectToDisplay != null)
         {
             objectToDisplay.SetActive(true);
@@ -89,18 +90,18 @@ public class ClockAndBatterySystem : MonoBehaviour
         DisplayNightText();
         UpdateMoneyText(); // Mise à jour initiale de l'affichage de l'argent
         UpdateRechargePriceText(); // Affiche le prix de recharge
-        StartCoroutine(HandleMovingImage()); // Commence à gérer les apparitions de l'image
-
-        // Assure-toi que movingImageButton est bien assigné dans l'éditeur Unity
-        if (movingImageButton != null)
-        {
-            movingImageButton.onClick.AddListener(OnMovingImageClick); // Ajoute l'écouteur de clic
-        }
+        UpdateBatteryDecrementPriceText(); // Affiche le prix de l'item qui réduit la décharge
 
         // Ajoute le listener pour le bouton recharge
         if (rechargeButton != null)
         {
             rechargeButton.onClick.AddListener(OnRechargeButtonClick);
+        }
+
+        // Ajoute le listener pour le bouton de réduction de la vitesse de décharge de la batterie
+        if (batteryDecrementButton != null)
+        {
+            batteryDecrementButton.onClick.AddListener(OnBatteryDecrementButtonClick);
         }
     }
 
@@ -178,7 +179,16 @@ public class ClockAndBatterySystem : MonoBehaviour
     {
         if (rechargePriceText != null)
         {
-            rechargePriceText.text = "Prix Recharge: $" + rechargeCost.ToString();
+            rechargePriceText.text = "Prix Recharge: $" + rechargeCost.ToString(); // Affiche "Prix Recharge: $100"
+        }
+    }
+
+    // Met à jour le texte affichant le prix de réduction de la décharge de batterie
+    void UpdateBatteryDecrementPriceText()
+    {
+        if (batteryDecrementPriceText != null)
+        {
+            batteryDecrementPriceText.text = "Prix Réduction Décharge: $" + batteryDecrementCost.ToString(); // Affiche "Prix: $200"
         }
     }
 
@@ -271,62 +281,39 @@ public class ClockAndBatterySystem : MonoBehaviour
         UpdateMoneyText(); // Met à jour l'affichage de l'argent
     }
 
-    private IEnumerator HandleMovingImage()
-    {
-        while (true)
-        {
-            if (hourCounter == 0 || hourCounter == 1 || hourCounter == 5 || hourCounter == 6)
-            {
-                while (hourCounter == 0 || hourCounter == 1 || hourCounter == 5 || hourCounter == 6)
-                {
-                    yield return null;
-                }
-            }
-
-            if (movingImageButton != null)
-            {
-                movingImageButton.gameObject.SetActive(true);
-                yield return new WaitForSeconds(5f);
-                movingImageButton.gameObject.SetActive(false);
-            }
-
-            float waitTime = Random.Range(5f, 20f);
-            yield return new WaitForSeconds(waitTime);
-        }
-    }
-
-    void OnMovingImageClick()
-    {
-        clickCount++;
-
-        if (clickCount >= maxClicksToMove && isMovingAllowed)
-        {
-            Vector3 currentPosition = movingImageButton.transform.position;
-            currentPosition.x -= 300f;
-            movingImageButton.transform.position = currentPosition;
-
-            clickCount = 0;
-
-            isMovingAllowed = false;
-            StartCoroutine(WaitForNextMove());
-        }
-    }
-
-    private IEnumerator WaitForNextMove()
-    {
-        yield return new WaitForSeconds(10f);
-        isMovingAllowed = true;
-    }
-
     // Handler pour le clic sur le bouton recharge
     void OnRechargeButtonClick()
     {
         if (money >= rechargeCost)
         {
             money -= rechargeCost; // Déduit le montant de l'argent
-            batteryIncreaseAmount += 1; // Augmente la capacité de recharge
+            batteryIncreaseAmount += 0.5f; // Augmente la capacité de recharge
+
+            // Multiplier le prix de recharge par 1.5
+            rechargeCost = Mathf.RoundToInt(rechargeCost * 2f);
+
             UpdateMoneyText(); // Met à jour l'affichage de l'argent
             UpdateRechargePriceText(); // Met à jour l'affichage du prix
+        }
+        else
+        {
+            Debug.Log("Pas assez d'argent pour acheter !");
+        }
+    }
+
+    // Handler pour le clic sur le bouton de réduction de la décharge de batterie
+    void OnBatteryDecrementButtonClick()
+    {
+        if (money >= batteryDecrementCost)
+        {
+            money -= batteryDecrementCost; // Déduit le montant de l'argent
+            batteryDecrementTime -= 5f; // Réduit la vitesse de décharge de la batterie (exemple : 5 secondes de moins)
+
+            // Multiplier le prix par 1.5 à chaque achat
+            batteryDecrementCost = Mathf.RoundToInt(batteryDecrementCost *2f);
+
+            UpdateMoneyText(); // Met à jour l'affichage de l'argent
+            UpdateBatteryDecrementPriceText(); // Met à jour l'affichage du prix
         }
         else
         {
