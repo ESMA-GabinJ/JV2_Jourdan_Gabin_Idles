@@ -9,6 +9,7 @@ public class ClockAndBatterySystem : MonoBehaviour
     public AudioSource musicAudioSource; // La référence à l'AudioSource de la musique
     public AudioClip night1Music; // La musique pour la nuit 1
     public AudioClip night2Music; // La musique pour la nuit 2
+    public AudioClip batteryDepletedAudio; // L'audio pour la fin de la batterie
 
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI batteryText;
@@ -190,7 +191,7 @@ public class ClockAndBatterySystem : MonoBehaviour
             batteryText.text = Mathf.Round(battery).ToString() + "%";
         }
 
-        // Si la batterie atteint 0%, afficher les deux images et redémarrer la scène après 5 secondes
+        // Si la batterie atteint 0%, afficher les deux images, redémarrer la scène après 5 secondes et jouer l'audio de fin de batterie
         if (battery <= 0f)
         {
             if (gameOverImage != null)
@@ -201,6 +202,19 @@ public class ClockAndBatterySystem : MonoBehaviour
             {
                 secondGameOverImage.SetActive(true); // Afficher la deuxième image de fin
             }
+
+            // Couper tous les autres audios et jouer l'audio de fin de batterie
+            if (musicAudioSource != null)
+            {
+                musicAudioSource.Stop(); // Arrêter la musique actuelle
+            }
+
+            if (batteryDepletedAudio != null && musicAudioSource != null)
+            {
+                musicAudioSource.clip = batteryDepletedAudio; // Charger l'audio de fin de batterie
+                musicAudioSource.Play(); // Jouer l'audio
+            }
+
             StartCoroutine(RestartSceneAfterDelay(5f)); // Redémarrer la scène après 5 secondes
         }
     }
@@ -218,7 +232,7 @@ public class ClockAndBatterySystem : MonoBehaviour
     {
         if (rechargePriceText != null)
         {
-            rechargePriceText.text = "Prix Recharge: $" + rechargeCost.ToString(); // Affiche "Prix Recharge: $100"
+            rechargePriceText.text = "Recharge: $" + rechargeCost.ToString(); // Affiche "Prix Recharge: $100"
         }
     }
 
@@ -227,7 +241,7 @@ public class ClockAndBatterySystem : MonoBehaviour
     {
         if (batteryDecrementPriceText != null)
         {
-            batteryDecrementPriceText.text = "Prix Réduction Décharge: $" + batteryDecrementCost.ToString(); // Affiche "Prix: $200"
+            batteryDecrementPriceText.text = "Reduction Decharge: $" + batteryDecrementCost.ToString(); // Affiche "Prix: $200"
         }
     }
 
