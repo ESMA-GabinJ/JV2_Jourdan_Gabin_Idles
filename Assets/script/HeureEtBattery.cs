@@ -2,15 +2,23 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections;
+using UnityEngine.SceneManagement; // Pour recharger la scène
 
 public class ClockAndBatterySystem : MonoBehaviour
 {
+    public AudioSource musicAudioSource; // La référence à l'AudioSource de la musique
+    public AudioClip night1Music; // La musique pour la nuit 1
+    public AudioClip night2Music; // La musique pour la nuit 2
+
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI batteryText;
     public TextMeshProUGUI nightText; // Texte pour afficher "Nuit X"
     public TextMeshProUGUI moneyText; // Texte pour afficher l'argent
     public TextMeshProUGUI rechargePriceText; // Texte pour afficher le prix du bouton recharge
     public TextMeshProUGUI batteryDecrementPriceText; // Texte pour afficher le prix du nouvel item
+
+    public GameObject gameOverImage; // L'image à afficher quand la batterie atteint 0%
+    public GameObject secondGameOverImage; // Deuxième image à afficher lorsque la batterie atteint 0%
 
     private float hourCounter = 0f;
     private float timeUpdateInterval = 10f;
@@ -77,6 +85,16 @@ public class ClockAndBatterySystem : MonoBehaviour
             batteryDecrementPriceText = GameObject.Find("BatteryDecrementPriceText").GetComponent<TextMeshProUGUI>();
         }
 
+        if (gameOverImage != null)
+        {
+            gameOverImage.SetActive(false); // S'assurer que l'image est cachée au début
+        }
+
+        if (secondGameOverImage != null)
+        {
+            secondGameOverImage.SetActive(false); // S'assurer que la deuxième image est cachée au début
+        }
+
         if (objectToDisplay != null)
         {
             objectToDisplay.SetActive(true);
@@ -102,6 +120,13 @@ public class ClockAndBatterySystem : MonoBehaviour
         if (batteryDecrementButton != null)
         {
             batteryDecrementButton.onClick.AddListener(OnBatteryDecrementButtonClick);
+        }
+
+        // Lancer la musique de la nuit 1 par défaut
+        if (musicAudioSource != null && night1Music != null)
+        {
+            musicAudioSource.clip = night1Music;
+            musicAudioSource.Play();
         }
     }
 
@@ -164,6 +189,20 @@ public class ClockAndBatterySystem : MonoBehaviour
         {
             batteryText.text = Mathf.Round(battery).ToString() + "%";
         }
+
+        // Si la batterie atteint 0%, afficher les deux images et redémarrer la scène après 5 secondes
+        if (battery <= 0f)
+        {
+            if (gameOverImage != null)
+            {
+                gameOverImage.SetActive(true); // Afficher la première image de fin
+            }
+            if (secondGameOverImage != null)
+            {
+                secondGameOverImage.SetActive(true); // Afficher la deuxième image de fin
+            }
+            StartCoroutine(RestartSceneAfterDelay(5f)); // Redémarrer la scène après 5 secondes
+        }
     }
 
     void UpdateMoneyText()
@@ -200,6 +239,18 @@ public class ClockAndBatterySystem : MonoBehaviour
         ResetBattery();
         AddMoney(); // Ajouter de l'argent à la fin de chaque nuit
         nightCounter++;
+
+        // Si on passe à la nuit 2, arrêter la musique de la nuit 1 et changer pour celle de la nuit 2
+        if (nightCounter == 5)
+        {
+            if (musicAudioSource != null)
+            {
+                musicAudioSource.Stop(); // Arrêter la musique actuelle
+                musicAudioSource.clip = night2Music; // Assigner la musique de la nuit 2
+                musicAudioSource.Play(); // Démarrer la nouvelle musique
+            }
+        }
+
         AdjustBatteryDecrementTime(); // Ajuster la vitesse de décharge de la batterie
         maxAppearancesPerNight += 2; // Augmente le nombre maximum d'apparitions à chaque nuit
         DisplayNightText(); // Met à jour l'affiche de la nuit
@@ -246,6 +297,13 @@ public class ClockAndBatterySystem : MonoBehaviour
             yield return new WaitForSeconds(6f);
             objectToDisplay.SetActive(false);
         }
+    }
+
+    // Coroutine pour redémarrer la scène après un délai
+    private IEnumerator RestartSceneAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name); // Redémarrer la scène actuelle
     }
 
     void OnToggleButtonClick()
@@ -310,7 +368,7 @@ public class ClockAndBatterySystem : MonoBehaviour
             batteryDecrementTime -= 5f; // Réduit la vitesse de décharge de la batterie (exemple : 5 secondes de moins)
 
             // Multiplier le prix par 1.5 à chaque achat
-            batteryDecrementCost = Mathf.RoundToInt(batteryDecrementCost *2f);
+            batteryDecrementCost = Mathf.RoundToInt(batteryDecrementCost * 2f);
 
             UpdateMoneyText(); // Met à jour l'affichage de l'argent
             UpdateBatteryDecrementPriceText(); // Met à jour l'affichage du prix
