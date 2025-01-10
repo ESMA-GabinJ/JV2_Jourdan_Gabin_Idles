@@ -2,24 +2,25 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections;
-using UnityEngine.SceneManagement; // Pour recharger la scène
+using UnityEngine.SceneManagement;
 
 public class ClockAndBatterySystem : MonoBehaviour
 {
-    public AudioSource musicAudioSource; // La référence à l'AudioSource de la musique
-    public AudioClip night1Music; // La musique pour la nuit 1
-    public AudioClip night2Music; // La musique pour la nuit 2
-    public AudioClip batteryDepletedAudio; // L'audio pour la fin de la batterie
+    public AudioSource musicAudioSource;
+    public AudioClip night1Music;
+    public AudioClip night2Music;
+    public AudioClip batteryDepletedAudio;
+    public AudioClip buttonClickSound;  // Le son à jouer lorsqu'un bouton est cliqué
 
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI batteryText;
-    public TextMeshProUGUI nightText; // Texte pour afficher "Nuit X"
-    public TextMeshProUGUI moneyText; // Texte pour afficher l'argent
-    public TextMeshProUGUI rechargePriceText; // Texte pour afficher le prix du bouton recharge
-    public TextMeshProUGUI batteryDecrementPriceText; // Texte pour afficher le prix du nouvel item
+    public TextMeshProUGUI nightText;
+    public TextMeshProUGUI moneyText;
+    public TextMeshProUGUI rechargePriceText;
+    public TextMeshProUGUI batteryDecrementPriceText;
 
-    public GameObject gameOverImage; // L'image à afficher quand la batterie atteint 0%
-    public GameObject secondGameOverImage; // Deuxième image à afficher lorsque la batterie atteint 0%
+    public GameObject gameOverImage;
+    public GameObject secondGameOverImage;
 
     private float hourCounter = 0f;
     private float timeUpdateInterval = 10f;
@@ -29,7 +30,7 @@ public class ClockAndBatterySystem : MonoBehaviour
     private bool isWaitingAfterReset = false;
 
     private float battery = 100f;
-    private float batteryDecrementTime = 40f; // Temps avant la décharge de la batterie
+    private float batteryDecrementTime = 40f;
     private bool batteryResetInProgress = false;
     private float resetTimer = 0f;
     private float startBatteryTime = 0f;
@@ -38,92 +39,61 @@ public class ClockAndBatterySystem : MonoBehaviour
     public GameObject objectToDisplay;
 
     public float batteryIncreaseAmount = 1f;
-    private int nightCounter = 1; // Compteur pour suivre la nuit actuelle
-    private int money = 0; // Montant total d'argent accumulé
+    private int nightCounter = 1;
+    private int money = 0;
 
-    private int maxAppearancesPerNight = 5; // Nombre maximum d'apparitions pour la première nuit
+    private int maxAppearancesPerNight = 5;
 
-    // Nouveau bouton recharge
-    public Button rechargeButton; // Le bouton qui va permettre d'augmenter le batteryIncreaseAmount
-    public int rechargeCost = 100; // Coût de l'achat du recharge
+    public Button rechargeButton;
+    public int rechargeCost = 100;
 
-    // Nouveau bouton pour réduire la vitesse de décharge de la batterie
-    public Button batteryDecrementButton; // Le bouton qui va permettre de réduire la vitesse de décharge
-    public int batteryDecrementCost = 200; // Coût initial de l'achat
+    public Button batteryDecrementButton;
+    public int batteryDecrementCost = 200;
+
+    // Nouveau bouton pour la fin de partie
+    public Button endGameButton;
+    private int endGameCost = 400000;
+
+    public Button newButton;  // Nouveau bouton pour jouer le son
+    public AudioSource buttonClickAudioSource;  // AudioSource pour jouer le son
 
     void Start()
     {
         startTime = Time.time;
         startBatteryTime = Time.time;
 
-        if (timeText == null)
-        {
-            timeText = GameObject.Find("TimeText").GetComponent<TextMeshProUGUI>();
-        }
+        if (timeText == null) timeText = GameObject.Find("TimeText").GetComponent<TextMeshProUGUI>();
+        if (batteryText == null) batteryText = GameObject.Find("BatteryText").GetComponent<TextMeshProUGUI>();
+        if (nightText == null) nightText = GameObject.Find("NightText").GetComponent<TextMeshProUGUI>();
+        if (moneyText == null) moneyText = GameObject.Find("MoneyText").GetComponent<TextMeshProUGUI>();
+        if (rechargePriceText == null) rechargePriceText = GameObject.Find("RechargePriceText").GetComponent<TextMeshProUGUI>();
+        if (batteryDecrementPriceText == null) batteryDecrementPriceText = GameObject.Find("BatteryDecrementPriceText").GetComponent<TextMeshProUGUI>();
 
-        if (batteryText == null)
-        {
-            batteryText = GameObject.Find("BatteryText").GetComponent<TextMeshProUGUI>();
-        }
+        if (gameOverImage != null) gameOverImage.SetActive(false);
+        if (secondGameOverImage != null) secondGameOverImage.SetActive(false);
+        if (objectToDisplay != null) objectToDisplay.SetActive(true);
 
-        if (nightText == null)
-        {
-            nightText = GameObject.Find("NightText").GetComponent<TextMeshProUGUI>();
-        }
+        StartCoroutine(DisplayObjectFor3Seconds());
 
-        if (moneyText == null)
-        {
-            moneyText = GameObject.Find("MoneyText").GetComponent<TextMeshProUGUI>();
-        }
+        if (toggleButton != null) toggleButton.onClick.AddListener(OnToggleButtonClick);
 
-        if (rechargePriceText == null)
-        {
-            rechargePriceText = GameObject.Find("RechargePriceText").GetComponent<TextMeshProUGUI>();
-        }
-
-        if (batteryDecrementPriceText == null)
-        {
-            batteryDecrementPriceText = GameObject.Find("BatteryDecrementPriceText").GetComponent<TextMeshProUGUI>();
-        }
-
-        if (gameOverImage != null)
-        {
-            gameOverImage.SetActive(false); // S'assurer que l'image est cachée au début
-        }
-
-        if (secondGameOverImage != null)
-        {
-            secondGameOverImage.SetActive(false); // S'assurer que la deuxième image est cachée au début
-        }
-
-        if (objectToDisplay != null)
-        {
-            objectToDisplay.SetActive(true);
-            StartCoroutine(DisplayObjectFor3Seconds());
-        }
-
-        if (toggleButton != null)
-            toggleButton.onClick.AddListener(OnToggleButtonClick);
-
-        // Initialiser l'affiche de la nuit
         DisplayNightText();
-        UpdateMoneyText(); // Mise à jour initiale de l'affichage de l'argent
-        UpdateRechargePriceText(); // Affiche le prix de recharge
-        UpdateBatteryDecrementPriceText(); // Affiche le prix de l'item qui réduit la décharge
+        UpdateMoneyText();
+        UpdateRechargePriceText();
+        UpdateBatteryDecrementPriceText();
 
-        // Ajoute le listener pour le bouton recharge
-        if (rechargeButton != null)
+        if (rechargeButton != null) rechargeButton.onClick.AddListener(OnRechargeButtonClick);
+        if (batteryDecrementButton != null) batteryDecrementButton.onClick.AddListener(OnBatteryDecrementButtonClick);
+
+        // Ajout du listener pour le bouton de fin de partie
+        if (endGameButton != null) endGameButton.onClick.AddListener(OnEndGameButtonClick);
+
+        // Ajout du listener pour jouer le son lorsqu'on clique sur le nouveau bouton
+        if (newButton != null && buttonClickAudioSource != null && buttonClickSound != null)
         {
-            rechargeButton.onClick.AddListener(OnRechargeButtonClick);
+            newButton.onClick.AddListener(PlayButtonClickSound);
         }
 
-        // Ajoute le listener pour le bouton de réduction de la vitesse de décharge de la batterie
-        if (batteryDecrementButton != null)
-        {
-            batteryDecrementButton.onClick.AddListener(OnBatteryDecrementButtonClick);
-        }
-
-        // Lancer la musique de la nuit 1 par défaut
         if (musicAudioSource != null && night1Music != null)
         {
             musicAudioSource.clip = night1Music;
@@ -131,12 +101,18 @@ public class ClockAndBatterySystem : MonoBehaviour
         }
     }
 
+    // Méthode qui joue le son de clic du bouton
+    void PlayButtonClickSound()
+    {
+        if (buttonClickAudioSource != null && buttonClickSound != null)
+        {
+            buttonClickAudioSource.PlayOneShot(buttonClickSound);
+        }
+    }
+
     void Update()
     {
-        if (isWaitingAfterReset)
-        {
-            return;
-        }
+        if (isWaitingAfterReset) return;
 
         if (Time.time - startTime >= timeUpdateInterval)
         {
@@ -178,71 +154,48 @@ public class ClockAndBatterySystem : MonoBehaviour
     void UpdateTimeText()
     {
         string formattedTime = hourCounter.ToString("00") + ":00";
-        if (timeText != null)
-        {
-            timeText.text = formattedTime;
-        }
+        if (timeText != null) timeText.text = formattedTime;
     }
 
     void UpdateBatteryText()
     {
-        if (batteryText != null)
-        {
-            batteryText.text = Mathf.Round(battery).ToString() + "%";
-        }
+        if (batteryText != null) batteryText.text = Mathf.Round(battery).ToString() + "%";
 
-        // Si la batterie atteint 0%, afficher les deux images, redémarrer la scène après 5 secondes et jouer l'audio de fin de batterie
         if (battery <= 0f)
         {
-            if (gameOverImage != null)
-            {
-                gameOverImage.SetActive(true); // Afficher la première image de fin
-            }
-            if (secondGameOverImage != null)
-            {
-                secondGameOverImage.SetActive(true); // Afficher la deuxième image de fin
-            }
+            if (gameOverImage != null) gameOverImage.SetActive(true);
+            if (secondGameOverImage != null) secondGameOverImage.SetActive(true);
 
-            // Couper tous les autres audios et jouer l'audio de fin de batterie
             if (musicAudioSource != null)
             {
-                musicAudioSource.Stop(); // Arrêter la musique actuelle
+                musicAudioSource.Stop();
             }
 
             if (batteryDepletedAudio != null && musicAudioSource != null)
             {
-                musicAudioSource.clip = batteryDepletedAudio; // Charger l'audio de fin de batterie
-                musicAudioSource.Play(); // Jouer l'audio
+                musicAudioSource.clip = batteryDepletedAudio;
+                musicAudioSource.Play();
             }
 
-            StartCoroutine(RestartSceneAfterDelay(5f)); // Redémarrer la scène après 5 secondes
+            StartCoroutine(RestartSceneAfterDelay(5f));
         }
     }
 
     void UpdateMoneyText()
     {
-        if (moneyText != null)
-        {
-            moneyText.text = "$" + money.ToString();
-        }
+        if (moneyText != null) moneyText.text = "$" + money.ToString();
     }
 
-    // Met à jour le texte affichant le prix de recharge
     void UpdateRechargePriceText()
     {
         if (rechargePriceText != null)
-        {
-            rechargePriceText.text = "Recharge: $" + rechargeCost.ToString(); // Affiche "Prix Recharge: $100"
-        }
+            rechargePriceText.text = "Recharge: $" + rechargeCost.ToString();
     }
 
-    // Met à jour le texte affichant le prix de réduction de la décharge de batterie
     void UpdateBatteryDecrementPriceText()
     {
         if (batteryDecrementPriceText != null)
-        {
-            batteryDecrementPriceText.text = "Reduction Decharge: $" + batteryDecrementCost.ToString(); // Affiche "Prix: $200"
-        }
+            batteryDecrementPriceText.text = "Reduction Decharge: $" + batteryDecrementCost.ToString();
     }
 
     private IEnumerator ResetHourAndBattery()
@@ -251,23 +204,22 @@ public class ClockAndBatterySystem : MonoBehaviour
         hourCounter = 0f;
         resetHourInProgress = false;
         ResetBattery();
-        AddMoney(); // Ajouter de l'argent à la fin de chaque nuit
+        AddMoney();
         nightCounter++;
 
-        // Si on passe à la nuit 2, arrêter la musique de la nuit 1 et changer pour celle de la nuit 2
         if (nightCounter == 5)
         {
             if (musicAudioSource != null)
             {
-                musicAudioSource.Stop(); // Arrêter la musique actuelle
-                musicAudioSource.clip = night2Music; // Assigner la musique de la nuit 2
-                musicAudioSource.Play(); // Démarrer la nouvelle musique
+                musicAudioSource.Stop();
+                musicAudioSource.clip = night2Music;
+                musicAudioSource.Play();
             }
         }
 
-        AdjustBatteryDecrementTime(); // Ajuster la vitesse de décharge de la batterie
-        maxAppearancesPerNight += 2; // Augmente le nombre maximum d'apparitions à chaque nuit
-        DisplayNightText(); // Met à jour l'affiche de la nuit
+        AdjustBatteryDecrementTime();
+        maxAppearancesPerNight += 2;
+        DisplayNightText();
         StartCoroutine(DisplayObjectFor6Seconds());
         isWaitingAfterReset = true;
 
@@ -297,10 +249,7 @@ public class ClockAndBatterySystem : MonoBehaviour
     private IEnumerator DisplayObjectFor3Seconds()
     {
         yield return new WaitForSeconds(3f);
-        if (objectToDisplay != null)
-        {
-            objectToDisplay.SetActive(false);
-        }
+        if (objectToDisplay != null) objectToDisplay.SetActive(false);
     }
 
     private IEnumerator DisplayObjectFor6Seconds()
@@ -313,11 +262,10 @@ public class ClockAndBatterySystem : MonoBehaviour
         }
     }
 
-    // Coroutine pour redémarrer la scène après un délai
     private IEnumerator RestartSceneAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name); // Redémarrer la scène actuelle
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     void OnToggleButtonClick()
@@ -325,71 +273,74 @@ public class ClockAndBatterySystem : MonoBehaviour
         if (battery < 100f)
         {
             battery += batteryIncreaseAmount;
-            if (battery > 100f)
-            {
-                battery = 100f;
-            }
+            if (battery > 100f) battery = 100f;
         }
     }
 
     void DisplayNightText()
     {
-        if (nightText != null)
-        {
-            nightText.text = "Nuit " + nightCounter;
-            nightText.gameObject.SetActive(true); // Le texte de la nuit reste toujours affiché
-        }
+        if (nightText != null) nightText.text = "Nuit " + nightCounter;
     }
 
     void AdjustBatteryDecrementTime()
     {
-        batteryDecrementTime = Mathf.Max(10f, 100f - (10f * (nightCounter - 1))); // Réduit de 10 secondes chaque nuit, minimum 10 secondes
+        batteryDecrementTime = Mathf.Max(10f, 100f - (10f * (nightCounter - 1)));
     }
 
     void AddMoney()
     {
-        int moneyEarned = 100 * (int)Mathf.Pow(2, nightCounter - 1); // Double les gains chaque nuit
+        int moneyEarned = 100 * (int)Mathf.Pow(2, nightCounter - 1);
         money += moneyEarned;
-        UpdateMoneyText(); // Met à jour l'affichage de l'argent
+        UpdateMoneyText();
     }
 
-    // Handler pour le clic sur le bouton recharge
     void OnRechargeButtonClick()
     {
         if (money >= rechargeCost)
         {
-            money -= rechargeCost; // Déduit le montant de l'argent
-            batteryIncreaseAmount += 0.5f; // Augmente la capacité de recharge
+            money -= rechargeCost;
+            batteryIncreaseAmount += 0.5f;
 
-            // Multiplier le prix de recharge par 1.5
             rechargeCost = Mathf.RoundToInt(rechargeCost * 2f);
 
-            UpdateMoneyText(); // Met à jour l'affichage de l'argent
-            UpdateRechargePriceText(); // Met à jour l'affichage du prix
-        }
-        else
-        {
-            Debug.Log("Pas assez d'argent pour acheter !");
+            UpdateMoneyText();
+            UpdateRechargePriceText();
         }
     }
 
-    // Handler pour le clic sur le bouton de réduction de la décharge de batterie
     void OnBatteryDecrementButtonClick()
     {
         if (money >= batteryDecrementCost)
         {
-            money -= batteryDecrementCost; // Déduit le montant de l'argent
-            batteryDecrementTime -= 5f; // Réduit la vitesse de décharge de la batterie (exemple : 5 secondes de moins)
+            money -= batteryDecrementCost;
+            batteryDecrementTime -= 5f;
 
-            // Multiplier le prix par 1.5 à chaque achat
             batteryDecrementCost = Mathf.RoundToInt(batteryDecrementCost * 2f);
 
-            UpdateMoneyText(); // Met à jour l'affichage de l'argent
-            UpdateBatteryDecrementPriceText(); // Met à jour l'affichage du prix
+            UpdateMoneyText();
+            UpdateBatteryDecrementPriceText();
+        }
+    }
+
+    void OnEndGameButtonClick()
+    {
+        if (money >= endGameCost)
+        {
+            money -= endGameCost;
+            UpdateMoneyText();
+
+            EndGame();
         }
         else
         {
-            Debug.Log("Pas assez d'argent pour acheter !");
+            Debug.Log("Pas assez d'argent pour acheter la fin de partie !");
         }
+    }
+
+    void EndGame()
+    {
+        Debug.Log("Fin de Partie achetée !");
+        // Charge la scène VictoryScene lorsque le joueur achète la fin de partie
+        SceneManager.LoadScene("win"); // Remplacez "VictoryScene" par le nom de la scène que vous souhaitez charger
     }
 }
