@@ -7,6 +7,7 @@ using UnityEngine.SceneManagement;
 public class ClockAndBatterySystem : MonoBehaviour
 {
     public AudioSource musicAudioSource;
+    public AudioSource soundAudioSource;
     public AudioClip night1Music;
     public AudioClip night2Music;
     public AudioClip batteryDepletedAudio;
@@ -45,10 +46,16 @@ public class ClockAndBatterySystem : MonoBehaviour
     private int maxAppearancesPerNight = 5;
 
     public Button rechargeButton;
-    public int rechargeCost = 100;
+    public int rechargeCost = 400;
 
     public Button batteryDecrementButton;
-    public int batteryDecrementCost = 200;
+    public int batteryDecrementCost = 2000;
+
+    public GameObject foxy;
+    public GameObject foxyDamage;
+    private float foxyRandomNumber;
+    private bool foxyCanAppear = false;
+    private int foxyHealth = 10;
 
     // Nouveau bouton pour la fin de partie
     public Button endGameButton;
@@ -81,6 +88,10 @@ public class ClockAndBatterySystem : MonoBehaviour
         UpdateMoneyText();
         UpdateRechargePriceText();
         UpdateBatteryDecrementPriceText();
+
+        StartCoroutine(LaunchFoxy());
+        foxy.SetActive(false);
+        foxyDamage.SetActive(false);
 
         if (rechargeButton != null) rechargeButton.onClick.AddListener(OnRechargeButtonClick);
         if (batteryDecrementButton != null) batteryDecrementButton.onClick.AddListener(OnBatteryDecrementButtonClick);
@@ -127,6 +138,16 @@ public class ClockAndBatterySystem : MonoBehaviour
                 StartCoroutine(ResetHourAndBattery());
             }
 
+            if (hourCounter == 1)
+            {
+                foxyCanAppear = true;
+            }
+
+            if (hourCounter == 5)
+            {
+                foxyCanAppear = false;
+            }
+
             startTime = Time.time;
         }
 
@@ -145,6 +166,11 @@ public class ClockAndBatterySystem : MonoBehaviour
             {
                 DecrementBattery();
             }
+        }
+
+        if (foxyHealth <= 0)
+        {
+            foxy.SetActive(false);
         }
 
         UpdateTimeText();
@@ -267,6 +293,31 @@ public class ClockAndBatterySystem : MonoBehaviour
         yield return new WaitForSeconds(delay);
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
+    private IEnumerator LaunchFoxy()
+    {
+        yield return new WaitForSeconds(10); //temps d'attente entre chaque possibilite d'apparition en secondes
+        foxyRandomNumber = Random.Range(0f, 100f); //ecart entre le plus petit
+        if (foxyRandomNumber >= 50f && foxyCanAppear == true) // pourcentage de chance qu'il apparaisse
+        {
+            foxyHealth = 10;
+            foxy.SetActive(true);
+            yield return new WaitForSeconds(5);
+            foxy.SetActive(false);
+            if (foxyHealth > 0)
+            {
+                battery -= 50;
+                foxyDamage.SetActive(true);
+                yield return new WaitForSeconds(0.2f);
+                foxyDamage.SetActive(false);
+            }
+        }
+        StartCoroutine(LaunchFoxy());
+    }
+
+    public void HitFoxy()
+    {
+        foxyHealth -= 1;
+    }
 
     void OnToggleButtonClick()
     {
@@ -313,7 +364,7 @@ public class ClockAndBatterySystem : MonoBehaviour
         if (money >= batteryDecrementCost)
         {
             money -= batteryDecrementCost;
-            batteryDecrementTime -= 5f;
+            batteryDecrementTime += 5f;
 
             batteryDecrementCost = Mathf.RoundToInt(batteryDecrementCost * 2f);
 
@@ -329,7 +380,7 @@ public class ClockAndBatterySystem : MonoBehaviour
             money -= endGameCost;
             UpdateMoneyText();
 
-            EndGame();
+            StartCoroutine(EndGame());
         }
         else
         {
@@ -337,10 +388,13 @@ public class ClockAndBatterySystem : MonoBehaviour
         }
     }
 
-    void EndGame()
+    private IEnumerator EndGame()
     {
+        soundAudioSource.PlayOneShot(batteryDepletedAudio);
+        yield return new WaitForSeconds(2f);
         Debug.Log("Fin de Partie achetée !");
         // Charge la scène VictoryScene lorsque le joueur achète la fin de partie
         SceneManager.LoadScene("win"); // Remplacez "VictoryScene" par le nom de la scène que vous souhaitez charger
     }
 }
+
